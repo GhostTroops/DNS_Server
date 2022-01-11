@@ -43,7 +43,7 @@ func (this *handler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		domain1 := msg.Question[0].Name
 		// logrus.Infof("domain: %v", domain1)
 		if testIs(domain1) {
-			logrus.Infof("domainxx:  %v %v  %v", addressOfRequester, domain, ip)
+			logrus.Infof("domainxx:  %v %v  %v", addressOfRequester, domain1, ip)
 			msg.Answer = append(msg.Answer, &dns.A{
 				Hdr: dns.RR_Header{Name: domain, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: 60},
 				A:   net.ParseIP(ip),
