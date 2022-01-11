@@ -3,9 +3,7 @@ module github.com/hktalent/DNS_Server
 go 1.17
 
 require (
-	github.com/google/subcommands v1.2.0
 	github.com/miekg/dns v1.1.45
-	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/sirupsen/logrus v1.8.1
 )
 

@@ -1,100 +1,67 @@
 package main
 
 import (
-	"context"
 	"flag"
-	"fmt"
+	"log"
 	"net"
-	"os"
-	"os/signal"
-	"sync"
-	"time"
+	"strconv"
+	"strings"
 
-	"github.com/google/subcommands"
-	"github.com/hktalent/DNS_Server/cache"
+	"github.com/miekg/dns"
 	"github.com/sirupsen/logrus"
 )
 
-type servePwCmd struct {
-	swagger   bool
-	withGuest bool
+var (
+	domain, ip, resUrl, logLevel string
+)
 
-	domain, author,
-	driver, dsn,
-	ipv4, ipv6,
-	defaultLanguage string
-	httpListen string
-	upstream   string
-}
+type handler struct{}
 
-func (*servePwCmd) Name() string     { return "serve" }
-func (*servePwCmd) Synopsis() string { return "Serve dnslog." }
-func (*servePwCmd) Usage() string {
-	return `serve [-options] <some text>:
-  Print args to stdout.
-`
-}
-
-func (p *servePwCmd) SetFlags(f *flag.FlagSet) {
-	f.StringVar(&p.domain, "domain", "example.com", "set domain, required")
-	f.StringVar(&p.author, "author", "dnslog", "set author, required")
-	f.StringVar(&p.ipv4, "4", "", "set public IPv4, required")
-	//flag.StringVar(&ipv6, "6", "", "set ipv6 publicIP, option")	// not support IPv6 now
-
-	//https://github.com/mattn/go-sqlite3/issues/39
-	f.StringVar(&p.dsn, "dsn", "file:godnslog.db?cache=shared&mode=rwc", "set database source name, option")
-	f.StringVar(&p.driver, "driver", "sqlite3", "set database driver, [sqlite3/mysql], option")
-	f.StringVar(&p.upstream, "upstreamp", "8.8.8.8:53", "set upstream dns")
-}
-
-func (p *servePwCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
-	// verify input
-	{
-		if p.ipv4 == "" || p.domain == "" {
-			logrus.Fatal("[main.go::main] You should set ipv4 and domain at least.")
-			return subcommands.ExitUsageError
-		}
-		if p.swagger {
-			logrus.Warnf("[main.go::main] We only suggest set this option in debug enviroment.")
-			return subcommands.ExitUsageError
+// func (this *handler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
+func ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
+	logrus.Infof("in")
+	msg := dns.Msg{}
+	msg.SetReply(r)
+	switch r.Question[0].Qtype {
+	case dns.TypeA:
+		msg.Authoritative = true
+		domain1 := msg.Question[0].Name
+		// logrus.Infof("domain: %v", domain1)
+		index := strings.Index(domain1, "."+domain)
+		if 0 < index {
+			// logrus.Infof("domainxx: %v", ip)
+			msg.Answer = append(msg.Answer, &dns.A{
+				Hdr: dns.RR_Header{Name: domain, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: 60},
+				A:   net.ParseIP(ip),
+			})
 		}
 	}
+	w.WriteMsg(&msg)
+}
 
-	var wg sync.WaitGroup
+func main() {
+	flag.StringVar(&domain, "domain", "51pwn.com", "set domain eg: 51pwn.com")
+	flag.StringVar(&ip, "ip", "199.180.115.7", "set domain server ip, eg: 222.44.11.3")
+	flag.StringVar(&resUrl, "resUrl", "http://127.0.0.1/dnsRecode", "Set the url that accepts dns parsing logs, eg: http://127.0.0.1/dnsRecode")
+	flag.StringVar(&logLevel, "level", "INFO", "set loglevel, option")
+	flag.Parse()
 
-	//	cache store
-	store := cache.NewCache(24*3600*time.Second, 10*time.Minute)
-
-	dns, err := server.NewDnsServer(&server.DnsServerConfig{
-		Domain:   p.domain,
-		RTimeout: 3 * time.Second,
-		WTimeout: 3 * time.Second,
-		V4:       net.ParseIP(p.ipv4),
-		V6:       net.ParseIP(p.ipv6),
-		Upstream: p.upstream,
-	}, store)
-	if err != nil {
-		logrus.Fatalf("[main.go::main] NewWebServer: %v", err)
+	switch strings.ToUpper(logLevel) {
+	case "DEBUG":
+		logrus.SetLevel(logrus.DebugLevel)
+	case "WARN":
+		logrus.SetLevel(logrus.WarnLevel)
+	case "INFO":
+		logrus.SetLevel(logrus.InfoLevel)
+	default:
+		logrus.SetLevel(logrus.WarnLevel)
 	}
+	dns.HandleFunc(domain+".", ServeDNS)
+	srv := &dns.Server{Addr: ":" + strconv.Itoa(53), Net: "udp"}
 
-	//run dns server
-	{
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			dns.Run()
-		}()
+	// srv.Handler = &handler{}
+	// srv.Handler = &ServeDNS{}
+	if err := srv.ListenAndServe(); err != nil {
+		log.Fatalf("Failed to set udp listener %s\n", err.Error())
 	}
-
-	sigCh := make(chan os.Signal)
-	signal.Notify(sigCh, os.Kill, os.Interrupt)
-	<-sigCh
-
-	dns.Shutdown()
-	store.Close()
-
-	wg.Wait()
-
-	fmt.Println()
-	return subcommands.ExitSuccess
 }
