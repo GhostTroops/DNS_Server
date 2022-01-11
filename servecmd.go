@@ -4,6 +4,7 @@ import (
 	"flag"
 	"log"
 	"net"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -13,30 +14,46 @@ import (
 
 var (
 	domain, ip, resUrl, logLevel string
+	aDomain                      []string
 )
 
 type handler struct{}
 
-// func (this *handler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
-func ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
+func testIs(s1 string) bool {
+	for _, s := range aDomain {
+		index := strings.Index(s1, "."+s)
+		if 0 < index {
+			return true
+		}
+	}
+	return false
+}
+
+func (this *handler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
+	// func ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	logrus.Infof("in")
-	msg := dns.Msg{}
+	// msg := dns.Msg{}
+	// dns.Responsewriter.RemoteAddr()
+	addressOfRequester := w.RemoteAddr()
+	msg := new(dns.Msg)
 	msg.SetReply(r)
 	switch r.Question[0].Qtype {
 	case dns.TypeA:
 		msg.Authoritative = true
 		domain1 := msg.Question[0].Name
 		// logrus.Infof("domain: %v", domain1)
-		index := strings.Index(domain1, "."+domain)
-		if 0 < index {
-			// logrus.Infof("domainxx: %v", ip)
+		if testIs(domain1) {
+			logrus.Infof("domainxx:  %v %v  %v", addressOfRequester, domain, ip)
 			msg.Answer = append(msg.Answer, &dns.A{
 				Hdr: dns.RR_Header{Name: domain, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: 60},
 				A:   net.ParseIP(ip),
 			})
+		} else {
+			logrus.Infof("not do")
 		}
+
 	}
-	w.WriteMsg(&msg)
+	w.WriteMsg(msg)
 }
 
 func main() {
@@ -45,6 +62,8 @@ func main() {
 	flag.StringVar(&resUrl, "resUrl", "http://127.0.0.1/dnsRecode", "Set the url that accepts dns parsing logs, eg: http://127.0.0.1/dnsRecode")
 	flag.StringVar(&logLevel, "level", "INFO", "set loglevel, option")
 	flag.Parse()
+	a := regexp.MustCompile(`[,;]`)
+	aDomain = a.Split(domain, -1)
 
 	switch strings.ToUpper(logLevel) {
 	case "DEBUG":
@@ -56,12 +75,15 @@ func main() {
 	default:
 		logrus.SetLevel(logrus.WarnLevel)
 	}
-	dns.HandleFunc(domain+".", ServeDNS)
+	// dns.HandleFunc(domain+".", ServeDNS)
 	srv := &dns.Server{Addr: ":" + strconv.Itoa(53), Net: "udp"}
 
-	// srv.Handler = &handler{}
+	srv.Handler = &handler{}
 	// srv.Handler = &ServeDNS{}
-	if err := srv.ListenAndServe(); err != nil {
+	err := srv.ListenAndServe()
+	defer srv.Shutdown()
+	if err != nil {
 		log.Fatalf("Failed to set udp listener %s\n", err.Error())
 	}
+
 }
