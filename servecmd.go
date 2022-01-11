@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"net"
 	"regexp"
@@ -29,30 +30,49 @@ func testIs(s1 string) bool {
 	return false
 }
 
+func parseQuery(m *dns.Msg, addressOfRequester net.Addr) {
+	for _, q := range m.Question {
+		switch q.Qtype {
+		case dns.TypeA:
+			log.Printf("Query for %s\n", q.Name)
+			if testIs(q.Name) {
+				rr, err := dns.NewRR(fmt.Sprintf("%s A %s", q.Name, ip))
+				if err == nil {
+					m.Answer = append(m.Answer, rr)
+				}
+			}
+		}
+	}
+}
 func (this *handler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	// func ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
-	logrus.Infof("in")
+	// logrus.Infof("in")
 	// msg := dns.Msg{}
 	// dns.Responsewriter.RemoteAddr()
 	addressOfRequester := w.RemoteAddr()
 	msg := new(dns.Msg)
 	msg.SetReply(r)
-	switch r.Question[0].Qtype {
-	case dns.TypeA:
-		msg.Authoritative = true
-		domain1 := msg.Question[0].Name
-		// logrus.Infof("domain: %v", domain1)
-		if testIs(domain1) {
-			logrus.Infof("domainxx:  %v %v  %v", addressOfRequester, domain1, ip)
-			msg.Answer = append(msg.Answer, &dns.A{
-				Hdr: dns.RR_Header{Name: domain, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: 60},
-				A:   net.ParseIP(ip),
-			})
-		} else {
-			logrus.Infof("not do")
-		}
-
+	switch r.Opcode {
+	case dns.OpcodeQuery:
+		parseQuery(msg, addressOfRequester)
 	}
+
+	// switch r.Question[0].Qtype {
+	// case dns.TypeA:
+	// 	msg.Authoritative = true
+	// 	domain1 := msg.Question[0].Name
+	// 	// logrus.Infof("domain: %v", domain1)
+	// 	if testIs(domain1) {
+	// 		logrus.Infof("domainxx:  %v %v  %v", addressOfRequester, domain1, ip)
+	// 		msg.Answer = append(msg.Answer, &dns.A{
+	// 			Hdr: dns.RR_Header{Name: domain, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: 60},
+	// 			A:   net.ParseIP(ip),
+	// 		})
+	// 	} else {
+	// 		logrus.Infof("not do")
+	// 	}
+
+	// }
 	w.WriteMsg(msg)
 }
 
