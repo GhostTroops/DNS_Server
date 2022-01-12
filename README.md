@@ -12,8 +12,9 @@ cp build/bin/* ~/go/bin/
 scp -i ~/.ssh/id_rsa -r -P $myVpsPort DNS_Server root@51pwn.com:/root/
 ```
 
-# How Row
+# How Run
 ```bash
-./DNS_Server -ip 199.180.115.7 -domain 51pwn.com
+./DNS_Server -ip 199.180.115.7 -domain 51pwn.com,exploit-poc.com -resUrl http://127.0.0.1:9999
+
 ```
 

@@ -1,10 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
-	"log"
 	"net"
+	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
@@ -30,12 +31,26 @@ func testIs(s1 string) bool {
 	return false
 }
 
+// 解决相同多次请求的问题
+func sendReq(addressOfRequester net.Addr, domain1 string) {
+	ip1 := fmt.Sprintf("%s", addressOfRequester)
+	a := regexp.MustCompile(`[:]`)
+	ip1 = a.Split(ip1, -1)[0]
+	i := strings.Count(domain1, "") - 2
+	domain1 = domain1[0:i]
+	logrus.Info(domain1 + " " + ip1)
+	post_body := bytes.NewReader([]byte(fmt.Sprintf(`{"ip":"%s","domain":"%s"}`, ip1, domain1)))
+	go http.Post(resUrl, "application/json", post_body)
+}
+
 func parseQuery(m *dns.Msg, addressOfRequester net.Addr) {
 	for _, q := range m.Question {
 		switch q.Qtype {
 		case dns.TypeA:
-			log.Printf("Query for %s\n", q.Name)
+
 			if testIs(q.Name) {
+				// logrus.Info("Query for %s %v\n", q.Name, addressOfRequester)
+				go sendReq(addressOfRequester, q.Name)
 				rr, err := dns.NewRR(fmt.Sprintf("%s A %s", q.Name, ip))
 				if err == nil {
 					m.Answer = append(m.Answer, rr)
@@ -44,11 +59,8 @@ func parseQuery(m *dns.Msg, addressOfRequester net.Addr) {
 		}
 	}
 }
+
 func (this *handler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
-	// func ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
-	// logrus.Infof("in")
-	// msg := dns.Msg{}
-	// dns.Responsewriter.RemoteAddr()
 	addressOfRequester := w.RemoteAddr()
 	msg := new(dns.Msg)
 	msg.SetReply(r)
@@ -57,22 +69,6 @@ func (this *handler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		parseQuery(msg, addressOfRequester)
 	}
 
-	// switch r.Question[0].Qtype {
-	// case dns.TypeA:
-	// 	msg.Authoritative = true
-	// 	domain1 := msg.Question[0].Name
-	// 	// logrus.Infof("domain: %v", domain1)
-	// 	if testIs(domain1) {
-	// 		logrus.Infof("domainxx:  %v %v  %v", addressOfRequester, domain1, ip)
-	// 		msg.Answer = append(msg.Answer, &dns.A{
-	// 			Hdr: dns.RR_Header{Name: domain, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: 60},
-	// 			A:   net.ParseIP(ip),
-	// 		})
-	// 	} else {
-	// 		logrus.Infof("not do")
-	// 	}
-
-	// }
 	w.WriteMsg(msg)
 }
 
@@ -82,7 +78,7 @@ func main() {
 	flag.StringVar(&resUrl, "resUrl", "http://127.0.0.1/dnsRecode", "Set the url that accepts dns parsing logs, eg: http://127.0.0.1/dnsRecode")
 	flag.StringVar(&logLevel, "level", "INFO", "set loglevel, option")
 	flag.Parse()
-	a := regexp.MustCompile(`[,;]`)
+	a := regexp.MustCompile(`[,;:]`)
 	aDomain = a.Split(domain, -1)
 
 	switch strings.ToUpper(logLevel) {
@@ -103,7 +99,7 @@ func main() {
 	err := srv.ListenAndServe()
 	defer srv.Shutdown()
 	if err != nil {
-		log.Fatalf("Failed to set udp listener %s\n", err.Error())
+		logrus.Fatalf("Failed to set udp listener %s\n", err.Error())
 	}
 
 }
