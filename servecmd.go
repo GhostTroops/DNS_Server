@@ -68,7 +68,7 @@ func otherDns(s string) string {
 	// 	}
 	// }
 	// // logrus.Info(t)
-	return ip
+	return fmt.Sprintf(`%s`, ip[0])
 }
 
 func parseQuery(m *dns.Msg, addressOfRequester net.Addr) {
