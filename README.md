@@ -1,5 +1,5 @@
 # DNS_Server
-DNS_Server
+Simple DNS log Server
 
 # How Build
 ```bash
