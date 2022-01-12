@@ -24,7 +24,7 @@ type handler struct{}
 func testIs(s1 string) bool {
 	for _, s := range aDomain {
 		index := strings.Index(s1, "."+s)
-		if 0 < index {
+		if 0 <= index {
 			return true
 		}
 	}
