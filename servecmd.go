@@ -22,8 +22,9 @@ var (
 type handler struct{}
 
 func testIs(s1 string) bool {
+	logrus.Info(s1)
 	for _, s := range aDomain {
-		index := strings.Index(s1, "."+s)
+		index := strings.Index(s1, s+".")
 		if 0 <= index {
 			return true
 		}
