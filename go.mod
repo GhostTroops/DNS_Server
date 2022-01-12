@@ -3,6 +3,7 @@ module github.com/hktalent/DNS_Server
 go 1.17
 
 require (
+	github.com/bogdanovich/dns_resolver v0.0.0-20170211073258-a8e42bc6a5b6
 	github.com/miekg/dns v1.1.45
 	github.com/sirupsen/logrus v1.8.1
 )
