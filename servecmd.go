@@ -58,7 +58,7 @@ func otherDns(s string) string {
 		logrus.Error(err)
 
 	}
-	szIp1 := ip
+	// szIp1 := ip
 	// logrus.Info(r)
 	// if len(r.Answer) > 0 {
 	// 	for _, ans := range r.Answer {
@@ -68,7 +68,7 @@ func otherDns(s string) string {
 	// 	}
 	// }
 	// // logrus.Info(t)
-	return szIp1
+	return ip
 }
 
 func parseQuery(m *dns.Msg, addressOfRequester net.Addr) {
