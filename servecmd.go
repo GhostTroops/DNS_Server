@@ -44,6 +44,28 @@ func sendReq(addressOfRequester net.Addr, domain1 string) {
 	go http.Post(resUrl, "application/json", post_body)
 }
 
+func otherDns(s string) string {
+	c := dns.Client{}
+	m := dns.Msg{}
+	m.SetQuestion(s, dns.TypeA)
+	r, _, err := c.Exchange(&m, "8.8.8.8:53")
+	if err != nil {
+		logrus.Error(err)
+
+	}
+	szIp1 := ""
+	// logrus.Info(r)
+	if len(r.Answer) > 0 {
+		for _, ans := range r.Answer {
+			Arecord := ans.(*dns.A)
+			szIp1 = fmt.Sprintf(`%s`, Arecord.A)
+			// logrus.Info(Arecord.A, szIp1)
+		}
+	}
+	// logrus.Info(t)
+	return szIp1
+}
+
 func parseQuery(m *dns.Msg, addressOfRequester net.Addr) {
 	for _, q := range m.Question {
 		switch q.Qtype {
@@ -55,6 +77,15 @@ func parseQuery(m *dns.Msg, addressOfRequester net.Addr) {
 				rr, err := dns.NewRR(fmt.Sprintf("%s A %s", q.Name, ip))
 				if err == nil {
 					m.Answer = append(m.Answer, rr)
+				}
+			} else {
+				szIp1 := otherDns(q.Name)
+				if 0 < len(szIp1) {
+					logrus.Info("[", szIp1, "]")
+					rr, err := dns.NewRR(fmt.Sprintf("%s A %s", q.Name, szIp1))
+					if err == nil {
+						m.Answer = append(m.Answer, rr)
+					}
 				}
 			}
 		}
