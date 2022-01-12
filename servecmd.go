@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/bogdanovich/dns_resolver"
 	"github.com/miekg/dns"
 	"github.com/sirupsen/logrus"
 )
@@ -45,24 +46,28 @@ func sendReq(addressOfRequester net.Addr, domain1 string) {
 }
 
 func otherDns(s string) string {
-	c := dns.Client{}
-	m := dns.Msg{}
-	m.SetQuestion(s, dns.TypeA)
-	r, _, err := c.Exchange(&m, "8.8.8.8:53")
+	resolver := dns_resolver.New([]string{"8.8.8.8", "8.8.4.4"})
+	resolver.RetryTimes = 5
+
+	// c := dns.Client{}
+	// m := dns.Msg{}
+	// m.SetQuestion(s, dns.TypeA)
+	// r, _, err := c.Exchange(&m, "8.8.8.8:53")
+	ip, err := resolver.LookupHost(s[0 : strings.Count(s, "")-2])
 	if err != nil {
 		logrus.Error(err)
 
 	}
-	szIp1 := ""
+	szIp1 := ip
 	// logrus.Info(r)
-	if len(r.Answer) > 0 {
-		for _, ans := range r.Answer {
-			Arecord := ans.(*dns.A)
-			szIp1 = fmt.Sprintf(`%s`, Arecord.A)
-			// logrus.Info(Arecord.A, szIp1)
-		}
-	}
-	// logrus.Info(t)
+	// if len(r.Answer) > 0 {
+	// 	for _, ans := range r.Answer {
+	// 		Arecord := ans.(*dns.A)
+	// 		szIp1 = fmt.Sprintf(`%s`, Arecord.A)
+	// 		// logrus.Info(Arecord.A, szIp1)
+	// 	}
+	// }
+	// // logrus.Info(t)
 	return szIp1
 }
 
