@@ -42,7 +42,15 @@ func sendReq(addressOfRequester net.Addr, domain1 string) {
 	domain1 = domain1[0:i]
 	logrus.Info(domain1 + " " + ip1)
 	post_body := bytes.NewReader([]byte(fmt.Sprintf(`{"ip":"%s","domain":"%s"}`, ip1, domain1)))
-	go http.Post(resUrl, "application/json", post_body)
+	//
+	req, err := http.NewRequest("POST", resUrl, post_body)
+	if err != nil {
+		req.Header.Add("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.2 Safari/605.1.15")
+		req.Header.Add("Content-Type", "application/json;charset=UTF-8")
+		client := &http.Client{}
+		client.Do(req)
+	}
+	// go http.Post(resUrl, "application/json",, post_body)
 }
 
 func otherDns(s string) string {
