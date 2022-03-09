@@ -45,10 +45,27 @@ func sendReq(addressOfRequester net.Addr, domain1 string) {
 	//
 	req, err := http.NewRequest("POST", resUrl, post_body)
 	if err == nil {
+		// 取消全局复用连接
+		// tr := http.Transport{DisableKeepAlives: true}
+		// client := http.Client{Transport: &tr}
 		req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.2 Safari/605.1.15")
 		req.Header.Add("Content-Type", "application/json;charset=UTF-8")
+		// keep-alive
 		req.Header.Add("Connection", "close")
-		go http.DefaultClient.Do(req)
+		req.Close = true
+
+		resp, err := http.DefaultClient.Do(req)
+		if resp != nil {
+			defer resp.Body.Close() // resp 可能为 nil，不能读取 Body
+		}
+		if err != nil {
+			// fmt.Println(err)
+			return
+		}
+
+		// body, err := ioutil.ReadAll(resp.Body)
+		// _, err = io.Copy(ioutil.Discard, resp.Body) // 手动丢弃读取完毕的数据
+		// json.NewDecoder(resp.Body).Decode(&data)
 		logrus.Info("[send request] " + ip1 + " " + domain1)
 		// req.Body.Close()
 	}
