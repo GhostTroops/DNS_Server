@@ -105,7 +105,7 @@ func otherDns(s string) string {
 func parseQuery(m *dns.Msg, addressOfRequester net.Addr) {
 	for _, q := range m.Question {
 		switch q.Qtype {
-		case dns.TypeA:
+		case dns.TypeA, dns.TypeAAAA:
 
 			if testIs(q.Name) {
 				// logrus.Info("Query for %s %v\n", q.Name, addressOfRequester)
