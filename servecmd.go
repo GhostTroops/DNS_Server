@@ -108,36 +108,47 @@ func otherDns(s string) string {
 func parseQuery(m *dns.Msg, addressOfRequester net.Addr) {
 	for _, q := range m.Question {
 		switch q.Qtype {
+		// https://golang.hotexamples.com/examples/github.com.miekg.dns/A/Txt/golang-a-txt-method-examples.html
 		case dns.TypeTXT:
-			value := os.Getenv(q.Name)
-			if "" == value {
-				value = q.Name
-			}
-			record := new(dns.TXT)
-			record.Hdr = dns.RR_Header{
-				Name:   q.Name,
-				Rrtype: dns.TypeTXT,
-				Class:  dns.ClassINET,
-				Ttl:    0,
-			}
-			record.Txt = []string{value}
-			m.Answer = append(m.Answer, record)
-		case dns.TypeA, dns.TypeAAAA:
-
-			if testIs(q.Name) {
-				// logrus.Info("Query for %s %v\n", q.Name, addressOfRequester)
-				go sendReq(addressOfRequester, q.Name)
-				rr, err := dns.NewRR(fmt.Sprintf("%s A %s", q.Name, ip))
-				if err == nil {
-					m.Answer = append(m.Answer, rr)
+			{
+				a := strings.Split(strings.ToLower(q.Name), ".")
+				if 2 > len(a) {
+					continue
 				}
-			} else {
-				szIp1 := otherDns(q.Name)
-				if 0 < len(szIp1) {
-					logrus.Info("[", szIp1, "]")
-					rr, err := dns.NewRR(fmt.Sprintf("%s A %s", q.Name, szIp1))
+				// 数字开头的域名不能作为环境变量
+				value := os.Getenv("_" + strings.Replace(a[1], "-", "_", -1))
+				if "" == value {
+					fmt.Println("没有对", value)
+					value = q.Name
+				}
+				record := new(dns.TXT)
+				record.Hdr = dns.RR_Header{
+					Name:   q.Name,
+					Rrtype: dns.TypeTXT,
+					Class:  dns.ClassINET,
+					Ttl:    0,
+				}
+				record.Txt = []string{value}
+				m.Answer = append(m.Answer, record)
+				continue
+			}
+		case dns.TypeA, dns.TypeAAAA:
+			{
+				if testIs(q.Name) {
+					// logrus.Info("Query for %s %v\n", q.Name, addressOfRequester)
+					go sendReq(addressOfRequester, q.Name)
+					rr, err := dns.NewRR(fmt.Sprintf("%s A %s", q.Name, ip))
 					if err == nil {
 						m.Answer = append(m.Answer, rr)
+					}
+				} else {
+					szIp1 := otherDns(q.Name)
+					if 0 < len(szIp1) {
+						logrus.Info("[", szIp1, "]")
+						rr, err := dns.NewRR(fmt.Sprintf("%s A %s", q.Name, szIp1))
+						if err == nil {
+							m.Answer = append(m.Answer, rr)
+						}
 					}
 				}
 			}
@@ -150,7 +161,7 @@ func (this *handler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	msg := new(dns.Msg)
 	msg.SetReply(r)
 	switch r.Opcode {
-	case dns.OpcodeQuery:
+	case dns.OpcodeQuery, dns.OpcodeIQuery:
 		parseQuery(msg, addressOfRequester)
 	}
 
