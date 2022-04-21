@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -22,6 +23,7 @@ var (
 
 type handler struct{}
 
+// 测试在运行的域名范围内
 func testIs(s1 string) bool {
 	logrus.Info(s1)
 	for _, s := range aDomain {
@@ -50,6 +52,7 @@ func sendReq(addressOfRequester net.Addr, domain1 string) {
 		// client := http.Client{Transport: &tr}
 		req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.2 Safari/605.1.15")
 		req.Header.Add("Content-Type", "application/json;charset=UTF-8")
+		req.Header.Add("Cache-Control", "no-cache")
 		// keep-alive
 		req.Header.Add("Connection", "close")
 		req.Close = true
@@ -105,6 +108,20 @@ func otherDns(s string) string {
 func parseQuery(m *dns.Msg, addressOfRequester net.Addr) {
 	for _, q := range m.Question {
 		switch q.Qtype {
+		case dns.TypeTXT:
+			value := os.Getenv(q.Name)
+			if "" == value {
+				value = q.Name
+			}
+			record := new(dns.TXT)
+			record.Hdr = dns.RR_Header{
+				Name:   q.Name,
+				Rrtype: dns.TypeTXT,
+				Class:  dns.ClassINET,
+				Ttl:    0,
+			}
+			record.Txt = []string{value}
+			m.Answer = append(m.Answer, record)
 		case dns.TypeA, dns.TypeAAAA:
 
 			if testIs(q.Name) {

@@ -1,5 +1,5 @@
 # DNS_Server
-Simple DNS log Server
+Simple DNS log Server,free DNS log server
 
 # How Build
 ```bash
@@ -10,6 +10,10 @@ go mod tidy
 # go build
 go install github.com/karalabe/xgo@latest
 xgo .
+
+# or 
+make -f Makefile.cross-compiles
+
 ```
 # How use
 ```bash
