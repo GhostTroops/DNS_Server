@@ -91,7 +91,7 @@ func otherDns(s string) string {
 
 	resolver := dns_resolver.New([]string{"8.8.8.8", "8.8.4.4"})
 	resolver.RetryTimes = 5
-	
+
 	ip, err := resolver.LookupHost(s[0 : strings.Count(s, "")-2])
 	if err != nil {
 		logrus.Error(err)
@@ -144,7 +144,6 @@ func parseQuery(m *dns.Msg, addressOfRequester net.Addr) {
 			{
 				if testIs(q.Name) {
 					// logrus.Info("Query for %s %v\n", q.Name, addressOfRequester)
-					go sendReq(addressOfRequester, q.Name)
 					rr, err := dns.NewRR(fmt.Sprintf("%s A %s", q.Name, ip))
 					if err == nil {
 						m.Answer = append(m.Answer, rr)
@@ -159,6 +158,7 @@ func parseQuery(m *dns.Msg, addressOfRequester net.Addr) {
 						}
 					}
 				}
+				go sendReq(addressOfRequester, q.Name)
 			}
 		}
 	}
