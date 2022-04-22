@@ -1,6 +1,10 @@
 # DNS_Server
 Simple DNS log Server,free DNS log server
 
+# what's the new
+- Reduce requests to ES servers based on caching
+- Added ACME DNS challenge design
+
 # How Build
 ```bash
 git clone https://github.com/hktalent/DNS_Server
@@ -8,10 +12,7 @@ cd DNS_Server
 go mod init github.com/facebookincubator/nvdtools
 go mod tidy
 # go build
-go install github.com/karalabe/xgo@latest
-xgo .
 
-# or 
 make -f Makefile.cross-compiles
 
 ```
