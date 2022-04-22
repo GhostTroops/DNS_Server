@@ -36,9 +36,10 @@ curl -s -v "http://127.0.0.1:55555/ACME?key=dd9j-dds-33xfgk-33&k=${1}&v=${2}"
 ## challenge
 ```
 docker run -it -p 80:80  --rm --name certbot \
-    -v "/etc/letsencrypt:/etc/letsencrypt" \
-    -v "/var/lib/letsencrypt:/var/lib/letsencrypt" \
-    certbot/certbot certonly  -d *.51pwn.com -d *.exploit-poc.com --manual --preferred-challenges dns --server https://acme-v02.api.letsencrypt.org/directory
+     -v "/etc/letsencrypt:/etc/letsencrypt" \
+     -v "/var/lib/letsencrypt:/var/lib/letsencrypt" \
+     certbot/certbot certonly  -d *.51pwn.com -d 51pwn.com -d *.exploit-poc.com  -d exploit-poc.com \
+     --manual --preferred-challenges dns --server https://acme-v02.api.letsencrypt.org/directory
 
 chmod +x upApi.sh
 
