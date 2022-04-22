@@ -38,7 +38,7 @@ func testIs(s1 string) bool {
 
 // 解决相同多次请求的问题
 func sendReq(addressOfRequester net.Addr, domain1 string) {
-	// 处理过就直接返回，减少ES服务器交互
+	// 处理过就直接返回，减少 Elasticsearch 服务器交互
 	cv, err := cache.Get(domain1)
 	if nil != err && "" != string(cv) {
 		cache.Put(domain1, []byte(addressOfRequester.String()))
@@ -84,30 +84,23 @@ func sendReq(addressOfRequester net.Addr, domain1 string) {
 }
 
 func otherDns(s string) string {
+	cv, err := cache.Get(s)
+	if nil != err && "" != string(cv) {
+		return string(cv)
+	}
+
 	resolver := dns_resolver.New([]string{"8.8.8.8", "8.8.4.4"})
 	resolver.RetryTimes = 5
-
-	// c := dns.Client{}
-	// m := dns.Msg{}
-	// m.SetQuestion(s, dns.TypeA)
-	// r, _, err := c.Exchange(&m, "8.8.8.8:53")
+	
 	ip, err := resolver.LookupHost(s[0 : strings.Count(s, "")-2])
 	if err != nil {
 		logrus.Error(err)
 
 	}
-	// szIp1 := ip
-	// logrus.Info(r)
-	// if len(r.Answer) > 0 {
-	// 	for _, ans := range r.Answer {
-	// 		Arecord := ans.(*dns.A)
-	// 		szIp1 = fmt.Sprintf(`%s`, Arecord.A)
-	// 		// logrus.Info(Arecord.A, szIp1)
-	// 	}
-	// }
-	// // logrus.Info(t)
 	if 0 < len(ip) {
-		return fmt.Sprintf(`%s`, ip[0])
+		s1 := fmt.Sprintf(`%s`, ip[0])
+		cache.Put(s, []byte(s1))
+		return s1
 	} else {
 		return ""
 	}
@@ -127,6 +120,7 @@ func parseQuery(m *dns.Msg, addressOfRequester net.Addr) {
 				fmt.Println(q.Name)
 				value1, ok := dnsKm.Load(strings.ToLower(q.Name))
 				if !ok {
+					fmt.Println(q.Name, "dnsKm.Load=", value1)
 					continue
 				}
 				value := value1.(string)

@@ -19,3 +19,15 @@ app:
 	)
 	@mv ./release/DNS_Server_windows_386 ./release/DNS_Server_windows_386.exe
 	@mv ./release/DNS_Server_windows_amd64 ./release/DNS_Server_windows_amd64.exe
+
+linux:
+	@$(os-archs=linux:amd64;\
+		echo os-archs;\
+		foreach n, $(os-archs),\
+		os=$(shell echo "$(n)" | cut -d : -f 1);\
+		arch=$(shell echo "$(n)" | cut -d : -f 2);\
+		gomips=$(shell echo "$(n)" | cut -d : -f 3);\
+		target_suffix=$${os}_$${arch};\
+		env CGO_ENABLED=0 GOOS=$${os} GOARCH=$${arch} GOMIPS=$${gomips} go build -trimpath -ldflags "$(LDFLAGS)" -o ./release/DNS_Server_$${target_suffix} .;\
+		echo "Build $${os}-$${arch} done";\
+	)
