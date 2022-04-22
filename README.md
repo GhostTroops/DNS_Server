@@ -24,7 +24,33 @@ cp build/bin/* ~/go/bin/
 scp -i ~/.ssh/id_rsa -r -P $myVpsPort DNS_Server root@51pwn.com:/root/
 ```
 
-#How config dns
+# How ACME DNS challenge
+## run server by key
+```
+./DNS_Server -key="dd9j-dds-33xfgk-33"
+```
+vi upApi.sh
+```
+curl -s -v "http://127.0.0.1:55555/ACME?key=dd9j-dds-33xfgk-33&k=${1}&v=${2}"
+```
+## challenge
+```
+docker run -it -p 80:80  --rm --name certbot \
+    -v "/etc/letsencrypt:/etc/letsencrypt" \
+    -v "/var/lib/letsencrypt:/var/lib/letsencrypt" \
+    certbot/certbot certonly  -d *.51pwn.com -d *.exploit-poc.com --manual --preferred-challenges dns --server https://acme-v02.api.letsencrypt.org/directory
+
+chmod +x upApi.sh
+
+./upApi.sh '_acme-challenge.exploit-poc.com.'.'QZPE4B9OQivKZDi7Hq3On1IhhdZiEX2iVJ8ojKuOGsA'
+./upApi.sh "_acme-challenge.51pwn.com" "q31hmgemyDDsU_rTIM8cW3h0EExs0HPt-SqwoVa0AV8"
+```
+After running the above command, confirm the certonly operation steps
+
+QZPE4B9OQivKZDi7Hq3On1IhhdZiEX2iVJ8ojKuOGsA and cW3h0EExs0HPt-SqwoVa0AV8 replace your
+
+
+# How config dns
 - add  hosts
 ```
 https://dcc.godaddy.com/manage/51pwn.com/dns/hosts
