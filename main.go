@@ -124,6 +124,7 @@ func parseQuery(m *dns.Msg, addressOfRequester net.Addr) {
 		// answerOwnChallenge
 		case dns.TypeTXT:
 			{
+				fmt.Println(q.Name)
 				value1, ok := dnsKm.Load(strings.ToLower(q.Name))
 				if !ok {
 					continue
@@ -139,7 +140,7 @@ func parseQuery(m *dns.Msg, addressOfRequester net.Addr) {
 					Name:   q.Name,
 					Rrtype: dns.TypeTXT,
 					Class:  dns.ClassINET,
-					Ttl:    1,
+					Ttl:    0,
 				}
 				record.Txt = []string{value}
 				m.Answer = append(m.Answer, record)
@@ -184,10 +185,12 @@ func (this *handler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 func HttpApiServer() {
 	if "" != httpHost {
 		http.HandleFunc("/ACME", func(w http.ResponseWriter, req *http.Request) {
-			key1 := req.PostForm.Get("key")
+			key1 := req.FormValue("key")
+			//log.Println("key1=", key1, "key=", key)
 			if key1 == key {
-				szDName := req.PostForm.Get("k")
-				szDNV := req.PostForm.Get("v")
+				szDName := req.FormValue("k")
+				szDNV := req.FormValue("v")
+				//log.Println(szDName, szDNV)
 				dnsKm.Store(szDName, szDNV)
 				w.Write([]byte("Ok"))
 			}
