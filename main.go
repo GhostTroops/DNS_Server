@@ -38,6 +38,14 @@ func testIs(s1 string) bool {
 
 // 解决相同多次请求的问题
 func sendReq(addressOfRequester net.Addr, domain1 string) {
+	// 跳过不需要记录的dns
+	r, err := regexp.Compile(`^(www|ns)\.`)
+	if nil == err {
+		a9 := r.FindAllString(strings.ToLower(domain1), -1)
+		if nil != a9 && 0 < len(a9) {
+			return
+		}
+	}
 	// 处理过就直接返回，减少 Elasticsearch 服务器交互
 	cv, err := cache.Get(domain1)
 	if nil != err && "" != string(cv) {
