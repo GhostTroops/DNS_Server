@@ -147,7 +147,11 @@ func fixdomain(domain1 string) string {
 	return domain1
 }
 func getDate() string {
-	currentTime := time.Now()
+	var currentTime = time.Now()
+	l, err := time.LoadLocation("Asia/Shanghai")
+	if nil == err {
+		currentTime = time.Now().In(l)
+	}
 	return currentTime.Format("2006-01-02 15:04:05")
 }
 func NewResult(ip string, domain1 string, bSave bool) *Result {
