@@ -313,7 +313,7 @@ func ip2domain(g *gin.Context) {
 	err := g.BindJSON(&r)
 	if nil == err {
 		r.Date = getDate()
-		if 1 == db1.Create(&r) {
+		if 1 == db1.Create[Result](&r) {
 			logrus.Debug("save ok ", r.Dns)
 		} else {
 			logrus.Debug("not save ok ", r.Dns)

@@ -19,6 +19,19 @@ go mod tidy
 make -f Makefile.cross-compiles
 
 ```
+## how cross build in macos
+```bash
+brew install FiloSottile/musl-cross/musl-cross
+which gobuild
+/usr/local/bin/gobuild
+cat  /usr/local/bin/gobuild
+go build -ldflags="-s -w " -trimpath -o $2 $1
+CC=x86_64-linux-musl-gcc CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -ldflags="-linkmode external -extldflags -static -s -w " -trimpath -o $2_linux $1
+
+gobuild . DNS_Server
+
+```
+
 # How use
 ```bash
 git commit -m "fix" .;git push
