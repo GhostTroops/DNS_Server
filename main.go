@@ -24,17 +24,22 @@ import (
 // 记录本地解析
 type Result struct {
 	gorm.Model
-	Dns    string   `json:"domain" gorm:"unique_index"`
-	Ip     []string `json:"ip"`
-	Date   string   `json:"date"`
-	SaveEs bool     `json:"saveEs"`
+	Dns    string `json:"domain" gorm:"unique_index"`
+	Ips    []Ips  `json:"ips" gorm:"many2many:result_ips"`
+	Date   string `json:"date"`
+	SaveEs bool   `json:"saveEs"`
+}
+
+type Ips struct {
+	gorm.Model
+	Ip string `json:"ip" gorm:"unique_index"`
 }
 
 var (
 	domain, ip, resUrl, logLevel string
 	aDomain                      []string
 	cache                        *db.KvDbOp = db.NewKvDbOp()
-	dbs                                     = db1.GetDb()
+	dbs                                     = db1.GetDb(&Ips{}, "db/mydbfile")
 	doSaveEs                     bool
 )
 
@@ -143,11 +148,11 @@ func fixdomain(domain1 string) string {
 }
 func getDate() string {
 	currentTime := time.Now()
-	return currentTime.Format("2017-09-07 17:06:06")
+	return currentTime.Format("2006-01-02 15:04:05")
 }
 func NewResult(ip string, domain1 string, bSave bool) *Result {
 	domain1 = fixdomain(domain1)
-	var r = &Result{Ip: []string{ip}, Dns: domain, SaveEs: bSave}
+	var r = &Result{Ips: []Ips{Ips{Ip: ip}}, Dns: domain, SaveEs: bSave}
 	r.Date = getDate()
 	return r
 }
@@ -207,7 +212,7 @@ func parseQuery(m *dns.Msg, addressOfRequester net.Addr) {
 				fmt.Println(q.Name)
 				value1, ok := dnsKm.Load(strings.ToLower(q.Name))
 				if !ok {
-					logrus.Debug(q.Name, "dnsKm.Load=", value1)
+					logrus.Debug(q.Name, " dnsKm.Load= ", value1)
 					continue
 				}
 				value := value1.(string)
@@ -267,7 +272,8 @@ func (this *handler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 func dnsRes(g *gin.Context) {
 	x1 := dbs
 	if nil == x1 {
-		x1 = db1.GetDb()
+		logrus.Debug("dbs is nil,db1.GetDb 失败了")
+		x1 = db1.GetDb(&Ips{}, "db/mydbfile")
 		if nil != x1 {
 			dbs = x1
 		} else {
@@ -276,18 +282,31 @@ func dnsRes(g *gin.Context) {
 	}
 	req := g.Request
 	q := req.FormValue("q")
+	q = strings.TrimSpace(q)
 	if "" != q {
 		r := GetDomain(q)
 		if nil != r {
 			g.JSON(http.StatusOK, r)
 			return
 		} else if nil != x1 {
-			var r1 Result
-			r = db1.GetOne[Result](&r1)
-			if nil != r {
-				g.JSON(http.StatusOK, r)
-				return
+			var rst []Result = db1.GetSubQueryLists(Result{}, "Ips",
+				[]Result{}, 10, 0, "dns = ?", q)
+			if 0 < len(rst) {
+				if 0 < len(rst[0].Ips) {
+					g.JSON(http.StatusOK, map[string]interface{}{"domain": q, "ip": rst[0].Ips[0].Ip, "date": rst[0].Date})
+					return
+				} else {
+					logrus.Debug(rst[0])
+					logrus.Debug(rst[0].Ips)
+				}
+				//var r1 Result
+				//r2 := db1.GetOne[Result](&r1, "dns=?", q)
+				//if nil != r2 {
+				//g.JSON(http.StatusOK, r2)
+			} else {
+				logrus.Debug("db1.GetOne not found ", q)
 			}
+
 		}
 	}
 	g.JSON(http.StatusNotFound, gin.H{"msg": "not found"})
@@ -318,6 +337,7 @@ func ip2domain(g *gin.Context) {
 		} else {
 			logrus.Debug("not save ok ", r.Dns)
 		}
+		g.JSON(http.StatusOK, "ok")
 		return
 	} else {
 		logrus.Debug("BindJSON ", err)
@@ -350,7 +370,7 @@ func main() {
 	flag.Uint64Var(&ExpiresAt, "ExpiresAt", 120000, "default 120s = 120000")
 	flag.Parse()
 	//cache.SetExpiresAt(ExpiresAt)
-
+	dbs.AutoMigrate(&Ips{}, &Result{})
 	doSaveEs = "" != resUrl
 
 	a := regexp.MustCompile(`[,;:]`)

@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/bogdanovich/dns_resolver v0.0.0-20170211073258-a8e42bc6a5b6
 	github.com/gin-gonic/gin v1.8.1
-	github.com/hktalent/goSqlite_gorm v1.0.6
+	github.com/hktalent/goSqlite_gorm v1.0.8
 	github.com/miekg/dns v1.1.49
 	github.com/sirupsen/logrus v1.8.1
 	gorm.io/gorm v1.23.6
