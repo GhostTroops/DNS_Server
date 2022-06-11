@@ -5,7 +5,7 @@
 Simple DNS log Server,free DNS log server
 
 # what's the new
-- Reduce requests to ES servers based on caching
+- Reduce requests to Elasticsearch servers based on caching
 - Added ACME DNS challenge design
 
 # How Build

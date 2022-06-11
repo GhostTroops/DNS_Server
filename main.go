@@ -2,24 +2,40 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/bogdanovich/dns_resolver"
+	"github.com/gin-gonic/gin"
+	db "github.com/hktalent/goSqlite_gorm/pkg/common"
+	db1 "github.com/hktalent/goSqlite_gorm/pkg/db"
+	"github.com/miekg/dns"
+	"github.com/sirupsen/logrus"
+	"gorm.io/gorm"
 	"net"
 	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
 	"sync"
-
-	"github.com/bogdanovich/dns_resolver"
-	"github.com/miekg/dns"
-	"github.com/sirupsen/logrus"
+	"time"
 )
+
+// 记录本地解析
+type Result struct {
+	gorm.Model
+	Dns    string   `json:"domain"`
+	Ip     []string `json:"ip"`
+	Date   string   `json:"date"`
+	SaveEs bool     `json:"saveEs"`
+}
 
 var (
 	domain, ip, resUrl, logLevel string
 	aDomain                      []string
-	cache                        *KvDbOp = NewKvDbOp()
+	cache                        *db.KvDbOp = db.NewKvDbOp()
+	dbs                                     = db1.GetDb()
+	doSaveEs                     bool
 )
 
 type handler struct{}
@@ -37,56 +53,58 @@ func testIs(s1 string) bool {
 }
 
 // 解决相同多次请求的问题
+// 一个域名多个ip到情况没有处理
+// 在还没有迁移到golang版server该功能先关闭
 func sendReq(addressOfRequester net.Addr, domain1 string) {
+	if !doSaveEs {
+		return
+	}
+	ip := fmt.Sprintf("%s", addressOfRequester)
+	ip1 := ip
 	// 跳过不需要记录的dns
-	r, err := regexp.Compile(`^(www|ns)\.`)
+	r, err := regexp.Compile(`^(www|ns)\..*\.(51pwn|exploit-poc)\.com`)
 	if nil == err {
 		a9 := r.FindAllString(strings.ToLower(domain1), -1)
 		if nil != a9 && 0 < len(a9) {
 			return
 		}
 	}
-	// 处理过就直接返回，减少 Elasticsearch 服务器交互
-	cv, err := cache.Get(domain1)
-	if nil != err && "" != string(cv) {
-		cache.Put(domain1, []byte(addressOfRequester.String()))
-		return
-	}
-	cache.Put(domain1, []byte(addressOfRequester.String()))
-	ip1 := fmt.Sprintf("%s", addressOfRequester)
-	a := regexp.MustCompile(`[:]`)
-	ip1 = a.Split(ip1, -1)[0]
-	i := strings.Count(domain1, "") - 2
-	domain1 = domain1[0:i]
-	logrus.Info(domain1 + " " + ip1)
-	post_body := bytes.NewReader([]byte(fmt.Sprintf(`{"ip":"%s","domain":"%s"}`, ip1, domain1)))
-	//
-	req, err := http.NewRequest("POST", resUrl, post_body)
-	if err == nil {
-		// 取消全局复用连接
-		// tr := http.Transport{DisableKeepAlives: true}
-		// client := http.Client{Transport: &tr}
-		req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.2 Safari/605.1.15")
-		req.Header.Add("Content-Type", "application/json;charset=UTF-8")
-		req.Header.Add("Cache-Control", "no-cache")
-		// keep-alive
-		req.Header.Add("Connection", "close")
-		req.Close = true
+	// 处理过就直接返回，减少 Elasticsearch 服务器交互,取到缓存，表示发送过请求
+	rD := GetDomain(domain1)
+	if nil == rD || !rD.SaveEs {
+		a := regexp.MustCompile(`[:]`)
+		ip1 = a.Split(ip1, -1)[0]
+		i := strings.Count(domain1, "") - 2
+		domain1 = domain1[0:i]
+		logrus.Info(domain1 + " " + ip1)
+		post_body := bytes.NewReader([]byte(fmt.Sprintf(`{"ip":"%s","domain":"%s"}`, ip1, domain1)))
+		req, err := http.NewRequest("POST", resUrl, post_body)
+		if err == nil {
+			// 取消全局复用连接
+			// tr := http.Transport{DisableKeepAlives: true}
+			// client := http.Client{Transport: &tr}
+			req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.2 Safari/605.1.15")
+			req.Header.Add("Content-Type", "application/json;charset=UTF-8")
+			req.Header.Add("Cache-Control", "no-cache")
+			// keep-alive
+			req.Header.Add("Connection", "close")
+			req.Close = true
+			resp, err := http.DefaultClient.Do(req)
+			if resp != nil {
+				defer resp.Body.Close() // resp 可能为 nil，不能读取 Body
+			}
+			if err != nil {
+				// fmt.Println(err)
+				return
+			}
 
-		resp, err := http.DefaultClient.Do(req)
-		if resp != nil {
-			defer resp.Body.Close() // resp 可能为 nil，不能读取 Body
+			// body, err := ioutil.ReadAll(resp.Body)
+			// _, err = io.Copy(ioutil.Discard, resp.Body) // 手动丢弃读取完毕的数据
+			// json.NewDecoder(resp.Body).Decode(&data)
+			logrus.Info("[send request] " + ip1 + " " + domain1)
+			send2cache4R(rD, ip, domain, true)
+			// req.Body.Close()
 		}
-		if err != nil {
-			// fmt.Println(err)
-			return
-		}
-
-		// body, err := ioutil.ReadAll(resp.Body)
-		// _, err = io.Copy(ioutil.Discard, resp.Body) // 手动丢弃读取完毕的数据
-		// json.NewDecoder(resp.Body).Decode(&data)
-		logrus.Info("[send request] " + ip1 + " " + domain1)
-		// req.Body.Close()
 	}
 	// go http.Post(resUrl, "application/json",, post_body)
 }
@@ -103,7 +121,6 @@ func otherDns(s string) string {
 	ip, err := resolver.LookupHost(s[0 : strings.Count(s, "")-2])
 	if err != nil {
 		logrus.Error(err)
-
 	}
 	if 0 < len(ip) {
 		s1 := fmt.Sprintf(`%s`, ip[0])
@@ -117,6 +134,68 @@ func otherDns(s string) string {
 var key, httpHost string
 var dnsKm sync.Map
 
+func fixdomain(domain1 string) string {
+	n1 := len(domain1) - 1
+	if "." == domain1[n1:] {
+		domain1 = domain1[:n1]
+	}
+	return domain1
+}
+func getDate() string {
+	currentTime := time.Now()
+	return currentTime.Format("2017-09-07 17:06:06")
+}
+func NewResult(ip string, domain1 string, bSave bool) *Result {
+	domain1 = fixdomain(domain1)
+	var r = &Result{Ip: []string{ip}, Dns: domain, SaveEs: bSave}
+	r.Date = getDate()
+	return r
+}
+func Result2Byte(r *Result) []byte {
+	b, err := json.Marshal(r)
+	if nil == err {
+		return b
+	}
+	return nil
+}
+func Byte2Result(data []byte) *Result {
+	var r Result
+	err := json.Unmarshal(data, &r)
+	if nil != err {
+		return nil
+	}
+	return &r
+}
+
+func send2cache4R(r *Result, ip, domain1 string, bSave bool) {
+	domain1 = fixdomain(domain1)
+	if nil == r {
+		r = NewResult(ip, domain1, bSave)
+	}
+	cache.Put(domain1, []byte(Result2Byte(r)))
+}
+
+// 基于缓存记录dns解析日志
+func send2cache(addressOfRequester net.Addr, domain1 string, bSave bool) {
+	domain1 = fixdomain(domain1)
+	cv, err := cache.Get(domain1)
+	s1 := addressOfRequester.String()
+	if nil == err && s1 == string(cv) {
+		return
+	}
+	cache.Put(domain1, []byte(Result2Byte(NewResult(ip, domain1, bSave))))
+}
+
+func GetDomain(d string) *Result {
+	d = fixdomain(d)
+	cv, err := cache.Get(d)
+	if nil == err {
+		r := Byte2Result(cv)
+		return r
+	}
+	return nil
+}
+
 func parseQuery(m *dns.Msg, addressOfRequester net.Addr) {
 	for _, q := range m.Question {
 		switch q.Qtype {
@@ -128,13 +207,13 @@ func parseQuery(m *dns.Msg, addressOfRequester net.Addr) {
 				fmt.Println(q.Name)
 				value1, ok := dnsKm.Load(strings.ToLower(q.Name))
 				if !ok {
-					fmt.Println(q.Name, "dnsKm.Load=", value1)
+					logrus.Debug(q.Name, "dnsKm.Load=", value1)
 					continue
 				}
 				value := value1.(string)
 				// 数字开头的域名不能作为环境变量
 				if "" == value {
-					fmt.Println("没有对", value)
+					logrus.Debug("没有对", value)
 					value = q.Name
 				}
 				record := new(dns.TXT)
@@ -166,6 +245,7 @@ func parseQuery(m *dns.Msg, addressOfRequester net.Addr) {
 						}
 					}
 				}
+				go send2cache(addressOfRequester, q.Name, false)
 				go sendReq(addressOfRequester, q.Name)
 			}
 		}
@@ -184,31 +264,95 @@ func (this *handler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	w.WriteMsg(msg)
 }
 
+func dnsRes(g *gin.Context) {
+	x1 := dbs
+	if nil == x1 {
+		x1 = db1.GetDb()
+		if nil != x1 {
+			dbs = x1
+		} else {
+			logrus.Debug("db1.GetDb 失败了")
+		}
+	}
+	req := g.Request
+	q := req.FormValue("q")
+	if "" != q {
+		r := GetDomain(q)
+		if nil != r {
+			g.JSON(http.StatusOK, r)
+			return
+		} else if nil != x1 {
+			var r1 Result
+			r = db1.GetOne[Result](&r1)
+			if nil != r {
+				g.JSON(http.StatusOK, r)
+				return
+			}
+		}
+	}
+	g.JSON(http.StatusNotFound, gin.H{"msg": "not found"})
+}
+func ACME(g *gin.Context) {
+	req := g.Request
+	key1 := req.FormValue("key")
+	logrus.Debug("req.FormValue key1=", key1, "key=", key)
+	if key1 == key {
+		szDName := req.FormValue("k")
+		szDNV := req.FormValue("v")
+		logrus.Debug(szDName, szDNV)
+		dnsKm.Store(szDName, szDNV)
+		g.JSON(http.StatusOK, "ok")
+	}
+}
+func ip2domain(g *gin.Context) {
+	if nil == dbs {
+		logrus.Debug("dbs is nil")
+		return
+	}
+	var r Result
+	err := g.BindJSON(&r)
+	if nil == err {
+		r.Date = getDate()
+		if 1 == db1.Create(&r) {
+			logrus.Debug("save ok ", r.Dns)
+		} else {
+			logrus.Debug("not save ok ", r.Dns)
+		}
+		return
+	} else {
+		logrus.Debug("BindJSON ", err)
+	}
+	g.JSON(http.StatusBadRequest, err)
+}
 func HttpApiServer() {
 	if "" != httpHost {
-		http.HandleFunc("/ACME", func(w http.ResponseWriter, req *http.Request) {
-			key1 := req.FormValue("key")
-			//log.Println("key1=", key1, "key=", key)
-			if key1 == key {
-				szDName := req.FormValue("k")
-				szDNV := req.FormValue("v")
-				//log.Println(szDName, szDNV)
-				dnsKm.Store(szDName, szDNV)
-				w.Write([]byte("Ok"))
-			}
-		})
-		http.ListenAndServe(httpHost, nil)
+		gin.SetMode(gin.ReleaseMode)
+		router := gin.Default()
+		s1 := "/ACME"
+		router.GET(s1, ACME)
+		router.POST(s1, ACME)
+		s1 = "/ip2domain"
+		router.GET(s1, ip2domain)
+		router.POST(s1, ip2domain)
+		router.GET("/dnslog", dnsRes)
+		router.Run(httpHost)
 	}
 }
 
 func main() {
+	var ExpiresAt uint64
 	flag.StringVar(&httpHost, "httpHost", "127.0.0.1:55555", "set ACME http Server ip:port,handle ACME DNS challenges easily,default: 127.0.0.1:55555")
 	flag.StringVar(&key, "key", "", "use ACME http API Key")
-	flag.StringVar(&domain, "domain", "51pwn.com", "set domain eg: 51pwn.com")
-	flag.StringVar(&ip, "ip", "199.180.115.7", "set domain server ip, eg: 222.44.11.3")
-	flag.StringVar(&resUrl, "resUrl", "http://127.0.0.1/dnsRecode", "Set the url that accepts dns parsing logs, eg: http://127.0.0.1/dnsRecode")
-	flag.StringVar(&logLevel, "level", "INFO", "set loglevel, option")
+	flag.StringVar(&domain, "domain", "51pwn.com,exploit-poc.com", "set domain eg: 51pwn.com")
+	flag.StringVar(&ip, "ip", "144.34.164.150", "set domain server ip, eg: 222.44.11.3")
+	flag.StringVar(&resUrl, "resUrl", "", "Set the Elasticsearch url that accepts dns parsing logs, eg: http://127.0.0.1/dnsRecode")
+	flag.StringVar(&logLevel, "level", "WARN", "set loglevel, option")
+	flag.Uint64Var(&ExpiresAt, "ExpiresAt", 120000, "default 120s = 120000")
 	flag.Parse()
+	//cache.SetExpiresAt(ExpiresAt)
+
+	doSaveEs = "" != resUrl
+
 	a := regexp.MustCompile(`[,;:]`)
 	aDomain = a.Split(domain, -1)
 
