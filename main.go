@@ -24,7 +24,7 @@ import (
 // 记录本地解析
 type Result struct {
 	gorm.Model
-	Dns    string   `json:"domain"`
+	Dns    string   `json:"domain" gorm:"unique_index"`
 	Ip     []string `json:"ip"`
 	Date   string   `json:"date"`
 	SaveEs bool     `json:"saveEs"`
