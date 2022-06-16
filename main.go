@@ -327,6 +327,17 @@ func ACME(g *gin.Context) {
 		g.JSON(http.StatusOK, "ok")
 	}
 }
+
+func getip(g *gin.Context) {
+	ip, ok := g.Request.Header["X-Real-IP"]
+	host, ok1 := g.Request.Header["Host"]
+	if ok && ok1 && 0 < len(host) && 0 < len(ip) && strings.HasPrefix(host[0], "ip.") {
+		g.JSON(http.StatusOK, ip[0])
+		return
+	}
+	g.JSON(http.StatusBadRequest, "can not get ip")
+	//return false
+}
 func ip2domain(g *gin.Context) {
 	if nil == dbs {
 		logrus.Debug("dbs is nil")
@@ -357,6 +368,7 @@ func HttpApiServer() {
 		router.POST(s1, ACME)
 		s1 = "/ip2domain"
 		router.GET(s1, ip2domain)
+		router.GET("/", getip)
 		router.POST(s1, ip2domain)
 		router.GET("/dnslog", dnsRes)
 		router.Run(httpHost)

@@ -27,7 +27,7 @@ func getDate() string {
 }
 func main() {
 	log.Println(getDate())
-	xx0 := db1.GetDb(&Ips{}, "/Users/51pwn/MyWork/DNS_Server/db/mydbfile")
+	xx0 := db1.GetDb(&Ips{}, "db/mydbfile")
 	xx0.AutoMigrate(&Ips{}, &Result{})
 	db1.GetTableName(&Result{})
 	var r Result = Result{Ips: []Ips{Ips{Ip: "11.2.33.4"}}, Dns: "xxx.com", Date: getDate()}
