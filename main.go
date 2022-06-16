@@ -329,12 +329,14 @@ func ACME(g *gin.Context) {
 }
 
 func getip(g *gin.Context) {
-	ip, ok := g.Request.Header["X-Real-IP"]
-	host, ok1 := g.Request.Header["Host"]
-	if ok && ok1 && 0 < len(host) && 0 < len(ip) && strings.HasPrefix(host[0], "ip.") {
+	ip, ok := g.Request.Header["X-Real-Ip"]
+	//host, ok1 := g.Request.Header["Host"]
+	//if ok && ok1 && 0 < len(host) && 0 < len(ip) && strings.HasPrefix(host[0], "ip.") {
+	if ok && 0 < len(ip) {
 		g.JSON(http.StatusOK, ip[0])
 		return
 	}
+	//logrus.Debug(ip, g.Request.Header)
 	g.JSON(http.StatusBadRequest, "can not get ip")
 	//return false
 }
