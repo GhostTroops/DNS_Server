@@ -333,7 +333,7 @@ func getip(g *gin.Context) {
 	//host, ok1 := g.Request.Header["Host"]
 	//if ok && ok1 && 0 < len(host) && 0 < len(ip) && strings.HasPrefix(host[0], "ip.") {
 	if ok && 0 < len(ip) {
-		g.JSON(http.StatusOK, ip[0])
+		g.Writer.Write([]byte(ip[0]))
 		return
 	}
 	//logrus.Debug(ip, g.Request.Header)
