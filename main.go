@@ -12,6 +12,7 @@ import (
 	"github.com/miekg/dns"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
+	"log"
 	"net"
 	"net/http"
 	"regexp"
@@ -377,12 +378,26 @@ func HttpApiServer() {
 	}
 }
 
+func GetOutboundIP() net.IP {
+	conn, err := net.Dial("udp", "8.8.8.8:80")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer conn.Close()
+
+	localAddr := conn.LocalAddr().(*net.UDPAddr)
+
+	return localAddr.IP
+}
+
 func main() {
 	var ExpiresAt uint64
 	flag.StringVar(&httpHost, "httpHost", "127.0.0.1:55555", "set ACME http Server ip:port,handle ACME DNS challenges easily,default: 127.0.0.1:55555")
 	flag.StringVar(&key, "key", "", "use ACME http API Key")
 	flag.StringVar(&domain, "domain", "51pwn.com,exploit-poc.com", "set domain eg: 51pwn.com")
-	flag.StringVar(&ip, "ip", "144.34.164.150", "set domain server ip, eg: 222.44.11.3")
+	//flag.StringVar(&ip, "ip", "144.34.164.150", "set domain server ip, eg: 222.44.11.3")
+	ip = GetOutboundIP().String()
+	log.Println("ip == ", ip)
 	flag.StringVar(&resUrl, "resUrl", "", "Set the Elasticsearch url that accepts dns parsing logs, eg: http://127.0.0.1/dnsRecode")
 	flag.StringVar(&logLevel, "level", "WARN", "set loglevel, option")
 	flag.Uint64Var(&ExpiresAt, "ExpiresAt", 120000, "default 120s = 120000")
