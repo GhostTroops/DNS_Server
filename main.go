@@ -395,13 +395,15 @@ func main() {
 	flag.StringVar(&httpHost, "httpHost", "127.0.0.1:55555", "set ACME http Server ip:port,handle ACME DNS challenges easily,default: 127.0.0.1:55555")
 	flag.StringVar(&key, "key", "", "use ACME http API Key")
 	flag.StringVar(&domain, "domain", "51pwn.com,exploit-poc.com", "set domain eg: 51pwn.com")
-	//flag.StringVar(&ip, "ip", "144.34.164.150", "set domain server ip, eg: 222.44.11.3")
-	ip = GetOutboundIP().String()
-	log.Println("ip == ", ip)
+	flag.StringVar(&ip, "ip", "102.37.158.103", "set domain server ip, eg: 222.44.11.3")
 	flag.StringVar(&resUrl, "resUrl", "", "Set the Elasticsearch url that accepts dns parsing logs, eg: http://127.0.0.1/dnsRecode")
 	flag.StringVar(&logLevel, "level", "WARN", "set loglevel, option")
 	flag.Uint64Var(&ExpiresAt, "ExpiresAt", 120000, "default 120s = 120000")
 	flag.Parse()
+	if "" == ip {
+		ip = GetOutboundIP().String()
+	}
+	log.Println("ip == ", ip)
 	//cache.SetExpiresAt(ExpiresAt)
 	dbs.AutoMigrate(&Ips{}, &Result{})
 	doSaveEs = "" != resUrl
